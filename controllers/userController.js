@@ -131,7 +131,8 @@ const updateUserRole = async (req, res) => {
     const { role } = req.body; 
 
     // ⚠️ SEGURIDAD ADICIONAL: Validar que el rol sea uno de los permitidos
-    const allowedRoles = ['admin', 'talento', 'servicio', 'invitado'];
+    // ✅ CORRECCIÓN: Se añade 'basico' a los roles permitidos.
+    const allowedRoles = ['admin', 'talento', 'servicio', 'basico', 'invitado'];
     if (!allowedRoles.includes(role)) {
         return res.status(400).json({ message: "Rol no válido." });
     }
@@ -145,16 +146,24 @@ const updateUserRole = async (req, res) => {
 
         const oldRole = userToUpdate.role;
 
-        // No se permite al administrador cambiar su propio rol por seguridad.
+        // Seguridad: No se permite al administrador cambiar su propio rol. (YA ESTÁ BIEN)
         if (req.user._id.toString() === id) {
              return res.status(400).json({ message: "No puedes modificar tu propio rol. Pídele a otro administrador que lo haga." });
         }
         
+        // 🚨 SEGURIDAD CRÍTICA: Bloquear la edición de OTROS administradores
+        // Solo un Super-Admin podría hacer esto. Para simplificar, lo bloqueamos por ahora.
+        if (userToUpdate.role === 'admin' && req.user._id.toString() !== id) {
+             return res.status(403).json({ message: "Acceso denegado. No puedes modificar el rol de otro administrador." });
+        }
+
+
+        // 🌟 ACCIÓN CLAVE: Guardar el nuevo rol
         userToUpdate.role = role;
         const updatedUser = await userToUpdate.save();
 
 
-        // ✅ AUDITORÍA: ROL CAMBIADO
+        // ✅ AUDITORÍA: ROL CAMBIADO (Mantenemos tu función de auditoría)
         logAuditAction(
             req, 
             'ROLE_CHANGE', 
@@ -164,7 +173,13 @@ const updateUserRole = async (req, res) => {
 
 
         const roleLabel = getRoleLabel(updatedUser.role);
-        res.status(200).json({ message: `Rol de ${updatedUser.name} actualizado a ${roleLabel}.`, user: updatedUser });
+        // 🌟 RETORNAMOS UNA SEÑAL DE SEGURIDAD 🌟
+        // Retornamos el ID del usuario actualizado, esto lo usaremos en el frontend para forzar el logout
+        res.status(200).json({ 
+            message: `Rol de ${updatedUser.name} actualizado a ${roleLabel}.`, 
+            user: updatedUser,
+            targetUserId: updatedUser._id // Señal para el frontend
+        });
     } catch (error) {
         res.status(500).json({ message: "Error al actualizar el rol.", error: error.message });
     }

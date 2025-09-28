@@ -4,33 +4,74 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config(); // Carga las variables de entorno del archivo .env
+// const path = require('path'); // ❌ Ya no se necesita
+require('dotenv').config(); 
 
 const authRoutes = require('./routes/authRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const userRoutes = require('./routes/userRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const auditRoutes = require('./routes/auditRoutes');
+
 // 2. Inicializar la aplicación Express
 const app = express();
-// El puerto se toma del .env (4000) o usa 5000 si no está definido
 const port = process.env.PORT || 5000;
 const mongoURI = process.env.MONGO_URI;
 
 // 3. Middlewares Globales
-// Configura CORS para permitir solicitudes desde el frontend (que estará en 5173 con Vite)
+// 🌟 CORRECCIÓN CRÍTICA: Configuración de CORS para aceptar el dominio de Render 🌟
+const allowedOrigins = [
+    'http://localhost:5173', 
+    'https://lacteos-prolinco.onrender.com' // ✅ Dominio de tu Frontend
+];
+
 app.use(cors({
-    origin: 'http://localhost:5173'
+    origin: (origin, callback) => {
+        // Permitir solicitudes sin 'origin' (ej. Postman)
+        if (!origin) return callback(null, true); 
+        
+        // Permitir solo orígenes listados
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'La política CORS no permite el acceso desde el origen especificado.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    }
 }));
 // Middleware para manejar datos JSON en las solicitudes
 app.use(express.json());
+
+// ******* Rutas de API *******
+app.use('/api/auth', authRoutes);
+app.use('/api/content', contentRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/audit', auditRoutes);
+
+// Ruta de prueba de raíz (sin el bloque de producción)
+app.get('/', (req, res) => {
+    res.json({ message: 'API de Lácteos Prolinco funcionando. Listo para recibir datos.' });
+});
+
+
+// ❌ ELIMINAR ESTE BLOQUE COMPLETO:
+/*
+if (process.env.NODE_ENV === 'production') {
+    const frontendPath = path.resolve(__dirname, '..', 'frontend', 'dist');
+    app.use(express.static(frontendPath));
+    app.get('*', (req, res) => {
+        if (!req.url.startsWith('/api')) {
+            res.sendFile(path.resolve(frontendPath, 'index.html'));
+        }
+    });
+}
+*/
+
 
 // 4. Conexión a MongoDB Atlas
 mongoose.connect(mongoURI)
     .then(() => {
         console.log('✅ Conexión a MongoDB Atlas exitosa para Lácteos Prolinco.');
-
-        // 5. Iniciar el servidor SOLO después de la conexión exitosa
         app.listen(port, () => {
             console.log(`🚀 Servidor de Lácteos Prolinco escuchando en http://localhost:${port}`);
         });
@@ -39,16 +80,3 @@ mongoose.connect(mongoURI)
         console.error('❌ Error de conexión a MongoDB:', error.message);
         console.error('Por favor, revisa tu MONGO_URI en el archivo .env.');
     });
-
-// 6. Rutas de prueba (Endpoint de raíz)
-app.get('/', (req, res) => {
-    res.json({ message: 'API de Lácteos Prolinco funcionando. Listo para recibir datos.' });
-});
-
-// ******* Aquí es donde se agregarán las rutas específicas (Ej: Productos, Clientes, etc.) ******
-// app.use('/api/productos', productoRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/content', contentRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/documents', documentRoutes);
-app.use('/api/audit', auditRoutes);
