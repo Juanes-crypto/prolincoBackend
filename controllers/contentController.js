@@ -7,7 +7,24 @@ const User = require('../models/User'); // Para el historial
 const initializeContent = async (section, defaultData = {}) => {
     let content = await Content.findOne({ section });
     if (!content) {
-        content = await Content.create({ section, ...defaultData });
+        // Inicializar con herramientas por defecto para la sección admin
+        const defaultTools = [];
+        
+        if (section === 'admin') {
+            defaultTools.push(
+                { name: 'Marco Legal', type: 'drive', url: '' },
+                { name: 'Matriz DOFA', type: 'drive', url: '' },
+                { name: 'Matriz PESTEL', type: 'drive', url: '' },
+                { name: 'Matriz EFI', type: 'drive', url: '' },
+                { name: 'Matriz EFE', type: 'drive', url: '' }
+            );
+        }
+        
+        content = await Content.create({ 
+            section, 
+            tools: defaultTools,
+            ...defaultData 
+        });
     }
     return content;
 };
