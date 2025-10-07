@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { getContent, updateContent, getHistory } = require('../controllers/contentController');
+const { getContent, updateContent, getHistory, updateToolUrl } = require('../controllers/contentController');
 const { protect, roleCheck } = require('../middleware/authMiddleware');
 
 const adminOnly = ['admin'];
@@ -19,6 +19,8 @@ router.get('/:section/history', protect, roleCheck(adminOnly), getHistory);
 // 2.1 Ruta de Edición (Protegido por Admin)
 // PUT /api/content/organizacional
 router.put('/:section', protect, roleCheck(adminOnly), updateContent);
+
+router.put('/:section/tool/:toolName', protect, roleCheck(adminOnly), updateToolUrl);
 
 // 2.2 Rutas de Lectura (Público/Logueado)
 // GET /api/content/organizacional (Misión, Visión, Valores, etc.)

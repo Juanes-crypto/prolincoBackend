@@ -150,8 +150,57 @@ const getHistory = async (req, res) => {
     }
 };
 
+// @desc    Actualizar URL de una herramienta específica
+// @route   PUT /api/content/:section/tool/:toolName
+// @access  Privado (Solo admin)
+const updateToolUrl = async (req, res) => {
+    const { section, toolName } = req.params;
+    const { url } = req.body;
+    const userId = req.user._id;
+
+    try {
+        let content = await Content.findOne({ section });
+        
+        if (!content) {
+            content = await initializeContent(section);
+        }
+
+        // Buscar la herramienta por nombre
+        const toolIndex = content.tools.findIndex(tool => tool.name === toolName);
+        
+        if (toolIndex === -1) {
+            return res.status(404).json({ message: 'Herramienta no encontrada' });
+        }
+
+        const oldUrl = content.tools[toolIndex].url;
+        
+        // Actualizar la URL
+        content.tools[toolIndex].url = url;
+
+        // Registrar en el historial
+        content.history.push({
+            field: `tool_${toolName}`,
+            oldValue: oldUrl,
+            newValue: url,
+            changedBy: userId,
+        });
+
+        await content.save();
+        
+        res.json({ 
+            message: `URL de ${toolName} actualizada correctamente.`,
+            tool: content.tools[toolIndex]
+        });
+
+    } catch (error) {
+        console.error('Error al actualizar herramienta:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+};
+
 module.exports = {
     getContent,
     updateContent,
-    getHistory
+    getHistory,
+    updateToolUrl
 };
