@@ -112,8 +112,8 @@ const getUsers = async (req, res) => {
     }
 
     try {
-        // Encontramos todos los usuarios, excluyendo la contraseña y la versión (v)
-        const users = await User.find().select('-password -__v');
+        // Encontramos todos los usuarios, excluyendo la contraseña, versión y datos sensibles
+        const users = await User.find().select('-password -__v -documentNumber');
         res.status(200).json(users);
     } catch (error) {
         res.status(500).json({ message: "Error al obtener la lista de usuarios.", error: error.message });

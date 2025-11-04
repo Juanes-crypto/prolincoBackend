@@ -40,7 +40,21 @@ const contentSchema = new mongoose.Schema({
     tools: [{
         name: { type: String, required: true }, // Nombre de la herramienta (ej: 'Organigrama', 'Volantes digitales')
         type: { type: String, enum: ['drive', 'whatsapp', 'text'], default: 'text' }, // Tipo de enlace
-        url: { type: String, default: '' }, // URL del Drive/WhatsApp
+        url: {
+            type: String,
+            default: '',
+            validate: {
+                validator: function(v) {
+                    // Si no está vacío, validar formato de URL
+                    if (v && v.trim() !== '') {
+                        const urlRegex = /^https?:\/\/.+/i;
+                        return urlRegex.test(v);
+                    }
+                    return true; // Permitir vacío
+                },
+                message: 'La URL debe tener un formato válido (ej: https://ejemplo.com)'
+            }
+        }, // URL del Drive/WhatsApp con validación
     }],
 
     // D. Historial de Cambios

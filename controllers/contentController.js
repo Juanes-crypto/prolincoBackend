@@ -66,9 +66,17 @@ const updateContent = async (req, res) => {
     const userId = req.user._id; // Obtenido del token por el middleware 'protect'
     const userRole = req.user.role;
 
-    // Solo el rol 'admin' puede editar inicialmente
-    if (userRole !== 'admin') {
-        return res.status(403).json({ message: 'Permiso denegado. Solo administradores pueden editar el contenido estratégico.' });
+    // Definir permisos por sección
+    const sectionPermissions = {
+        'admin': ['admin'],
+        'talento': ['admin', 'talento'],
+        'servicio': ['admin', 'servicio'],
+        'organizacional': ['admin'] // Solo admin para identidad organizacional
+    };
+
+    // Verificar si el usuario tiene permiso para editar esta sección
+    if (!sectionPermissions[section] || !sectionPermissions[section].includes(userRole)) {
+        return res.status(403).json({ message: `Permiso denegado. No tienes autorización para editar la sección ${section}.` });
     }
 
     try {
