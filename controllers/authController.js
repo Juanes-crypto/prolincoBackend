@@ -14,58 +14,63 @@ const generateToken = (id) => {
 
 // @desc    Registrar un nuevo usuario
 // @route   POST /api/auth/register
-// @access  Público
+// @access  Privado/Admin (ya protegido en routes)
 const registerUser = async (req, res) => {
   const { name, email, documentType, documentNumber, role } = req.body;
 
   // Validación básica de campos
-  if (!documentType || !documentNumber) {
+  if (!name || !email || !documentType || !documentNumber) {
     return res
       .status(400)
-      .json({ message: "Por favor, ingrese el tipo y número de documento." });
+      .json({ message: "Todos los campos son obligatorios: nombre, email, tipo y número de documento." });
   }
 
   try {
-    // 1. Verificar si el usuario ya existe
-    const userExists = await User.findOne({ documentNumber });
+    // 1. Verificar si el usuario ya existe (por email o documento)
+    const userExists = await User.findOne({
+      $or: [
+        { email: email.toLowerCase() },
+        { documentNumber }
+      ]
+    });
 
     if (userExists) {
       return res
         .status(400)
         .json({
-          message: "Ya existe un usuario con este número de documento.",
+          message: userExists.email === email.toLowerCase()
+            ? "Ya existe un usuario con este email."
+            : "Ya existe un usuario con este número de documento.",
         });
     }
 
     // 2. Definir la contraseña por defecto (Número de Documento)
-    // La hashearemos aquí, aunque el middleware de Mongoose lo hará automáticamente.
-    // Hacemos un hasheo manual solo para este caso, ya que no se proporciona en el body.
-
     // ¡IMPORTANTE! Mongoose hashea la contraseña en el middleware pre-save (models/User.js).
-    // Le pasamos el documentNumber como contraseña (según requisito), y Mongoose la hashea.
     const defaultPassword = documentNumber;
 
     // 3. Crear el usuario
     const user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
       documentType,
-      documentNumber,
-      // Asignamos la contraseña por defecto (luego será hasheada por Mongoose)
+      documentNumber: documentNumber.trim(),
       password: defaultPassword,
-      // Si se pasa un rol, lo usa. Si no, usa el 'basico' definido en el modelo
       role: role || "invitado",
     });
 
     if (user) {
+      // ✅ AUDITORÍA: USUARIO CREADO
+      const { logAuditAction } = require('../middleware/auditMiddleware');
+      logAuditAction(req, 'USER_CREATE', `Usuario creado: ${user.name} (${user.email}) con rol: ${user.role}.`, user._id);
+
       res.status(201).json({
-        message: "Registro exitoso.",
-        // Devolvemos el token para que el usuario pueda iniciar sesión inmediatamente
+        message: "Usuario registrado exitosamente. Debe cambiar su contraseña inicial.",
         token: generateToken(user._id),
         user: {
           id: user._id,
           documentNumber: user.documentNumber,
           role: user.role,
+          isPasswordSet: user.isPasswordSet,
         },
       });
     } else {
@@ -73,6 +78,13 @@ const registerUser = async (req, res) => {
     }
   } catch (error) {
     console.error("Error en el registro:", error);
+
+    // Mejorar manejo de errores de validación de Mongoose
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ message: messages.join(', ') });
+    }
+
     res.status(500).json({ message: "Error interno del servidor." });
   }
 };

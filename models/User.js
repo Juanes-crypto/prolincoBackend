@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema({
     role: {
         type: String,
         required: true,
-         enum: ['admin', 'talento', 'servicio', 'basico', 'invitado'],
+         enum: ['admin', 'talento', 'servicio', 'invitado'],
         default: 'invitado' // El rol predeterminado al registrarse
     }
 }, {

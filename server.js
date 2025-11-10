@@ -5,7 +5,18 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 // const path = require('path'); // ❌ Ya no se necesita
-require('dotenv').config(); 
+require('dotenv').config();
+
+// 2. VALIDACIÓN CRÍTICA DE VARIABLES DE ENTORNO
+if (!process.env.MONGO_URI) {
+  console.error('❌ ERROR CRÍTICO: MONGO_URI no está definida en el archivo .env');
+  process.exit(1);
+}
+
+if (!process.env.JWT_SECRET) {
+  console.error('❌ ERROR CRÍTICO: JWT_SECRET no está definida en el archivo .env');
+  process.exit(1);
+}
 
 const authRoutes = require('./routes/authRoutes');
 const contentRoutes = require('./routes/contentRoutes');
@@ -13,7 +24,7 @@ const userRoutes = require('./routes/userRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 
-// 2. Inicializar la aplicación Express
+// 3. Inicializar la aplicación Express
 const app = express();
 const port = process.env.PORT || 5000;
 const mongoURI = process.env.MONGO_URI;

@@ -131,8 +131,7 @@ const updateUserRole = async (req, res) => {
     const { role } = req.body; 
 
     // ⚠️ SEGURIDAD ADICIONAL: Validar que el rol sea uno de los permitidos
-    // ✅ CORRECCIÓN: Se añade 'basico' a los roles permitidos.
-    const allowedRoles = ['admin', 'talento', 'servicio', 'basico', 'invitado'];
+    const allowedRoles = ['admin', 'talento', 'servicio', 'invitado'];
     if (!allowedRoles.includes(role)) {
         return res.status(400).json({ message: "Rol no válido." });
     }

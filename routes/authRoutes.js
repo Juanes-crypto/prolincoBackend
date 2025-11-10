@@ -3,12 +3,13 @@
 const express = require('express');
 const router = express.Router();
 const { registerUser, loginUser } = require('../controllers/authController');
+const { protect, roleCheck } = require('../middleware/authMiddleware');
 
-// Ruta para crear un nuevo usuario
+// 🔒 SEGURIDAD CRÍTICA: Solo administradores pueden registrar nuevos usuarios
 // POST a /api/auth/register
-router.post('/register', registerUser);
+router.post('/register', protect, roleCheck(['admin']), registerUser);
 
-// Ruta para iniciar sesión
+// Ruta para iniciar sesión (pública)
 // POST a /api/auth/login
 router.post('/login', loginUser);
 
