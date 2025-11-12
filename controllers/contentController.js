@@ -19,10 +19,20 @@ const initializeContent = async (section, defaultData = {}) => {
                 { name: 'Matriz EFE', type: 'drive', url: '' }
             );
         } else if (section === 'servicio') {
+            // 🌟 CORRECCIÓN CRÍTICA: Agregar TODAS las herramientas que el frontend espera
             defaultTools.push(
+                { name: 'Volantes Digitales', type: 'drive', url: '' },
                 { name: 'Carteles Publicitarios', type: 'drive', url: '' },
-                { name: 'Volantes digitales', type: 'drive', url: '' },
-                { name: 'Organigrama', type: 'drive', url: '' }
+                { name: 'Formulario de Contacto', type: 'drive', url: '' },
+                { name: 'Volantes (Ofertas)', type: 'drive', url: '' },
+                { name: 'Ciclo de Servicio', type: 'drive', url: '' },
+                { name: 'Chat en Vivo', type: 'drive', url: '' },
+                { name: 'WhatsApp Venta', type: 'whatsapp', url: '' },
+                { name: 'Estrategias de Marketing', type: 'drive', url: '' },
+                { name: 'WhatsApp Soporte', type: 'whatsapp', url: '' },
+                { name: 'Instagram', type: 'drive', url: '' },
+                { name: 'Encuestas de Satisfacción', type: 'drive', url: '' },
+                { name: 'Sección de Soporte (PQRS)', type: 'drive', url: '' }
             );
         } else if (section === 'talento') {
             defaultTools.push(
