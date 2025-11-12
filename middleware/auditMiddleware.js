@@ -43,4 +43,4 @@ const logAuditAction = async (req, actionType, description, targetId = null) => 
     }
 };
 
-module.exports = { logAuditAction };
+module.exports = { logAuditAction }; 

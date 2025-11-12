@@ -10,7 +10,7 @@ const historySchema = new mongoose.Schema({
     changedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // Referencia al modelo User para saber quién cambió
-        required: true
+        required: false // Permitir null para cambios sin usuario autenticado
     },
     changeDate: {
         type: Date,

@@ -7,9 +7,9 @@ const User = require('../models/User'); // Para el historial
 const initializeContent = async (section, defaultData = {}) => {
     let content = await Content.findOne({ section });
     if (!content) {
-        // Inicializar con herramientas por defecto para la sección admin
+        // Inicializar con herramientas por defecto por sección
         const defaultTools = [];
-        
+
         if (section === 'admin') {
             defaultTools.push(
                 { name: 'Marco Legal', type: 'drive', url: '' },
@@ -18,12 +18,23 @@ const initializeContent = async (section, defaultData = {}) => {
                 { name: 'Matriz EFI', type: 'drive', url: '' },
                 { name: 'Matriz EFE', type: 'drive', url: '' }
             );
+        } else if (section === 'servicio') {
+            defaultTools.push(
+                { name: 'Carteles Publicitarios', type: 'drive', url: '' },
+                { name: 'Volantes digitales', type: 'drive', url: '' },
+                { name: 'Organigrama', type: 'drive', url: '' }
+            );
+        } else if (section === 'talento') {
+            defaultTools.push(
+                { name: 'Organigrama', type: 'drive', url: '' },
+                { name: 'Proceso de Inducción', type: 'drive', url: '' }
+            );
         }
-        
-        content = await Content.create({ 
-            section, 
+
+        content = await Content.create({
+            section,
             tools: defaultTools,
-            ...defaultData 
+            ...defaultData
         });
     }
     return content;
@@ -32,6 +43,7 @@ const initializeContent = async (section, defaultData = {}) => {
 // @desc    Obtener contenido de una sección
 // @route   GET /api/content/:section
 // @access  Público (cualquier usuario logueado puede leer)
+// CORRECIÓN EN LA FUNCIÓN getContent - contentController.js
 const getContent = async (req, res) => {
     const { section } = req.params;
     
@@ -43,14 +55,19 @@ const getContent = async (req, res) => {
     }
 
     try {
-        const content = await Content.findOne({ section }).select('-history'); // Excluimos el historial para el GET normal
+        let content = await Content.findOne({ section });
         
-        // Si no existe, lo creamos con valores por defecto
-        if (!content) {
-            return res.json(await initializeContent(section));
+        // 🌟 CORRECCIÓN CRÍTICA: Si no existe O si existe pero tools está vacío, inicializar
+        if (!content || (content.tools && content.tools.length === 0)) {
+            console.log(`🆕 Inicializando/Reinicializando contenido para: ${section}`);
+            content = await initializeContent(section);
         }
 
-        res.json(content);
+        // Excluimos el historial para el GET normal
+        const responseContent = content.toObject();
+        delete responseContent.history;
+        
+        res.json(responseContent);
     } catch (error) {
         console.error('Error al obtener contenido:', error);
         res.status(500).json({ message: 'Error interno del servidor al obtener contenido.' });
@@ -164,23 +181,38 @@ const getHistory = async (req, res) => {
 const updateToolUrl = async (req, res) => {
     const { section, toolName } = req.params;
     const { url } = req.body;
-    const userId = req.user._id;
+    const userId = req.user ? req.user._id : null;
+
+    console.log(`🔧 updateToolUrl llamado: section=${section}, toolName=${toolName}, url=${url}, userId=${userId}`);
 
     try {
         let content = await Content.findOne({ section });
         
+        console.log(`📊 Contenido encontrado para sección ${section}:`, content ? 'Sí' : 'No');
+        
         if (!content) {
+            console.log(`🆕 Inicializando contenido para sección: ${section}`);
             content = await initializeContent(section);
         }
 
-        // Buscar la herramienta por nombre
-        const toolIndex = content.tools.findIndex(tool => tool.name === toolName);
+        // 🌟 CORRECCIÓN: Buscar herramienta de forma más flexible
+        const toolIndex = content.tools.findIndex(tool => {
+            const toolNameNormalized = tool.name.toLowerCase().replace(/\s/g, '');
+            const searchNameNormalized = toolName.toLowerCase().replace(/\s/g, '');
+            console.log(`🔍 Buscando herramienta: ${toolNameNormalized} vs ${searchNameNormalized}`);
+            return toolNameNormalized === searchNameNormalized;
+        });
+        
+        console.log(`📊 Índice de herramienta encontrado: ${toolIndex}`);
         
         if (toolIndex === -1) {
-            return res.status(404).json({ message: 'Herramienta no encontrada' });
+            console.log(`❌ Herramienta no encontrada: ${toolName}`);
+            console.log(`📋 Herramientas disponibles:`, content.tools.map(t => t.name));
+            return res.status(404).json({ message: `Herramienta '${toolName}' no encontrada en la sección ${section}.` });
         }
 
         const oldUrl = content.tools[toolIndex].url;
+        console.log(`📊 URL anterior: ${oldUrl}, Nueva URL: ${url}`);
         
         // Actualizar la URL
         content.tools[toolIndex].url = url;
@@ -194,6 +226,7 @@ const updateToolUrl = async (req, res) => {
         });
 
         await content.save();
+        console.log(`✅ Herramienta actualizada y guardada exitosamente`);
         
         res.json({ 
             message: `URL de ${toolName} actualizada correctamente.`,
@@ -201,8 +234,8 @@ const updateToolUrl = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error al actualizar herramienta:', error);
-        res.status(500).json({ message: 'Error interno del servidor' });
+        console.error('❌ Error en updateToolUrl:', error);
+        res.status(500).json({ message: 'Error interno del servidor: ' + error.message });
     }
 };
 

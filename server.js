@@ -32,7 +32,8 @@ const mongoURI = process.env.MONGO_URI;
 // 3. Middlewares Globales
 //  CORRECCIÓN CRÍTICA: Configuración de CORS para aceptar el dominio de Render 🌟
 const allowedOrigins = [
-    'http://localhost:5173', 
+    'http://localhost:5173',
+    'http://localhost:5174', // ✅ Agregado para desarrollo local
     'https://lacteos-prolinco.onrender.com' // ✅ Dominio de tu Frontend
 ];
 
