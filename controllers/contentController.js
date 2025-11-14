@@ -53,7 +53,6 @@ const initializeContent = async (section, defaultData = {}) => {
 // @desc    Obtener contenido de una sección
 // @route   GET /api/content/:section
 // @access  Público (cualquier usuario logueado puede leer)
-// CORRECIÓN EN LA FUNCIÓN getContent - contentController.js
 const getContent = async (req, res) => {
     const { section } = req.params;
     
