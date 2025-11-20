@@ -1,55 +1,63 @@
-// models/User.js
-
+// backend/models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: true, // Hacemos que el nombre sea obligatorio
+        required: true,
         trim: true,
     },
     email: {
         type: String,
-        required: true, // Hacemos que el email sea obligatorio
-        unique: true, // El email debe ser único
+        required: true,
+        unique: true,
         trim: true,
         lowercase: true,
         match: [/.+@.+\..+/, 'Por favor, introduce un correo válido']
     },
-    // La forma de registrarse: TIPO DE DOCUMENTO + NÚMERO DE DOCUMENTO
     documentType: {
         type: String,
         required: true,
-        enum: ['CC', 'TI', 'CE', 'NIT'] // Ejemplo de tipos, puedes ajustarlos
+        enum: ['CC', 'TI', 'CE', 'NIT'] 
     },
     documentNumber: {
         type: String,
         required: true,
-        unique: true, // Asegura que no haya números de documento duplicados
+        unique: true, 
         trim: true,
     },
     password: {
         type: String,
         required: false,
     },
+    // 👇 AGREGAMOS ESTOS PARA EVITAR ERRORES SI EL CONTROLADOR LOS BUSCA
+    position: {
+        type: String,
+        required: false, // Opcional en el registro público
+        default: 'Sin definir'
+    },
+    area: {
+        type: String,
+        required: false, // Opcional en el registro público
+        default: 'General'
+    },
     isPasswordSet: {
         type: Boolean,
-        default: false, // Por defecto, la contraseña no ha sido cambiada
+        default: false, // 👈 CLAVE: Esto nos dirá si debe cambiar contraseña
     },
     role: {
         type: String,
         required: true,
-         enum: ['admin', 'talento', 'servicio', 'invitado'],
-        default: 'invitado' // El rol predeterminado al registrarse
+        enum: ['admin', 'talento', 'servicio', 'invitado'],
+        default: 'invitado'
     }
 }, {
-    timestamps: true // Agrega campos 'createdAt' y 'updatedAt'
+    timestamps: true
 });
 
-// Middleware de Mongoose: Encripta la contraseña antes de guardar el usuario
+// Middleware de encriptación
 userSchema.pre('save', async function(next) {
-    // Solo hashear si la contraseña se ha modificado (o es nueva)
     if (!this.isModified('password')) {
         return next();
     }
@@ -62,11 +70,9 @@ userSchema.pre('save', async function(next) {
     }
 });
 
-// Método para comparar contraseñas (uso en el login)
 userSchema.methods.matchPassword = async function(enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
 const User = mongoose.model('User', userSchema);
-
 module.exports = User;

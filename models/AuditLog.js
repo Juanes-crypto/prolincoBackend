@@ -18,7 +18,11 @@ const auditLogSchema = new mongoose.Schema({
     actionType: { // Ejemplo: 'LOGIN', 'LOGOUT', 'USER_CREATE', 'DOC_DELETE', 'PASS_CHANGE'
         type: String,
         required: true,
-        enum: ['LOGIN', 'LOGOUT', 'USER_CREATE', 'USER_UPDATE', 'USER_DELETE', 'DOC_UPLOAD', 'DOC_DELETE', 'PASS_CHANGE', 'ROLE_CHANGE'],
+        enum: [
+            'LOGIN', 'LOGOUT', 'USER_CREATE', 'USER_UPDATE',
+            'USER_DELETE', 'DOC_UPLOAD', 'DOC_DELETE', 'PASS_CHANGE', 
+            'ROLE_CHANGE', 'TOOL_CREATE', 'TOOL_UPDATE', 'TOOL_DELETE'
+        ],
     },
     
     // 3. Sobre qué se actuó

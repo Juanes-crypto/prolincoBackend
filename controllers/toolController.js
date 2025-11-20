@@ -2,6 +2,7 @@
 const Tool = require('../models/Tool');
 const fs = require('fs');
 const path = require('path');
+const logAction = require('../utils/auditLogger'); // 👈 IMPORTACIÓN DEL LOGGER
 
 // @desc    Crear una nueva herramienta (Definición)
 // @route   POST /api/tools
@@ -28,6 +29,16 @@ const createTool = async (req, res) => {
         });
 
         const savedTool = await newTool.save();
+
+        // 🕵️‍♂️ AUDITORÍA: CREACIÓN
+        await logAction(
+            req.user, 
+            'TOOL_CREATE', 
+            `Creó herramienta "${title}" en sección ${section} (Cat: ${category})`, 
+            savedTool._id, 
+            req
+        );
+
         res.status(201).json(savedTool);
 
     } catch (error) {
@@ -46,8 +57,7 @@ const getToolsBySection = async (req, res) => {
         // Buscamos todas las herramientas de esa sección
         const tools = await Tool.find({ section }).sort({ category: 1, createdAt: -1 });
 
-        // Agrupamos por Categoría para enviarlo ordenado al frontend
-        // Resultado esperado: { "Preventa": [tool1, tool2], "Venta": [tool3] }
+        // Agrupamos por Categoría
         const groupedTools = tools.reduce((acc, tool) => {
             const cat = tool.category;
             if (!acc[cat]) {
@@ -80,27 +90,41 @@ const updateToolData = async (req, res) => {
             return res.status(404).json({ message: 'Herramienta no encontrada' });
         }
 
-        // 1. Actualizar URL si se envió y la herramienta lo permite
+        let auditDescription = `Actualizó herramienta "${tool.title}"`;
+
+        // 1. Actualizar URL si se envió
         if (tool.config.allowsUrl && urlValue !== undefined) {
             tool.urlValue = urlValue;
+            auditDescription += ' (Cambió URL)';
         }
 
-        // 2. Actualizar Archivo si se envió y la herramienta lo permite
+        // 2. Actualizar Archivo si se envió
         if (tool.config.allowsFile && file) {
-            // Si ya había un archivo anterior, sugerencia: borrarlo para ahorrar espacio
+            // Si ya había un archivo anterior, borrarlo
             if (tool.fileUrl) {
                 const oldPath = path.join(__dirname, '..', tool.fileUrl);
                 if (fs.existsSync(oldPath)) {
-                    fs.unlinkSync(oldPath); // Borrar viejo
+                    fs.unlinkSync(oldPath); 
                 }
             }
 
-            // Guardar nueva ruta (relativa para que funcione en frontend)
+            // Guardar nueva ruta
             tool.fileUrl = `/uploads/${file.filename}`; 
             tool.originalFileName = file.originalname;
+            auditDescription += ' (Subió nuevo archivo)';
         }
 
         const updatedTool = await tool.save();
+
+        // 🕵️‍♂️ AUDITORÍA: ACTUALIZACIÓN
+        await logAction(
+            req.user, 
+            'TOOL_UPDATE', 
+            auditDescription, 
+            tool._id, 
+            req
+        );
+
         res.json(updatedTool);
 
     } catch (error) {
@@ -118,13 +142,27 @@ const deleteTool = async (req, res) => {
 
         if (!tool) return res.status(404).json({ message: 'No encontrado' });
 
-        // Si tiene archivo, borrarlo del servidor
+        // Borrar archivo físico si existe
         if (tool.fileUrl) {
              const filePath = path.join(__dirname, '..', tool.fileUrl);
              if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         }
 
+        // Guardamos datos para el log antes de borrar
+        const toolTitle = tool.title;
+        const toolId = tool._id;
+
         await tool.deleteOne();
+
+        // 🕵️‍♂️ AUDITORÍA: ELIMINACIÓN
+        await logAction(
+            req.user, 
+            'TOOL_DELETE', 
+            `Eliminó herramienta "${toolTitle}"`, 
+            toolId, 
+            req
+        );
+
         res.json({ message: 'Herramienta eliminada' });
 
     } catch (error) {

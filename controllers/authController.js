@@ -1,141 +1,134 @@
-// controllers/authController.js
-
+// backend/controllers/authController.js
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs"); // Necesario solo para la contraseña por defecto
+const logAction = require('../utils/auditLogger'); // Usamos el logger nuevo que sí funciona
 
-// 1. Función auxiliar para generar el JWT
+// Generar Token
 const generateToken = (id) => {
-  // Usamos el ID del usuario en el token. El JWT_SECRET está en el .env
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: "30d", // El token expirará en 30 días
+    expiresIn: "30d",
   });
 };
 
-// @desc    Registrar un nuevo usuario
+// @desc    Registrar usuario (Lógica Antigua Restaurada)
 // @route   POST /api/auth/register
-// @access  Privado/Admin (ya protegido en routes)
-const registerUser = async (req, res) => {
+const register = async (req, res) => {
+  // NOTA: En tu versión vieja no pedías 'position' ni 'area', así que los quitamos para evitar líos
   const { name, email, documentType, documentNumber, role } = req.body;
 
-  // Validación básica de campos
   if (!name || !email || !documentType || !documentNumber) {
-    return res
-      .status(400)
-      .json({ message: "Todos los campos son obligatorios: nombre, email, tipo y número de documento." });
+    return res.status(400).json({ message: "Todos los campos son obligatorios." });
   }
 
   try {
-    // 1. Verificar si el usuario ya existe (por email o documento)
+    // 1. Verificar duplicados
     const userExists = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { documentNumber }
-      ]
+      $or: [{ email: email.toLowerCase() }, { documentNumber }]
     });
 
     if (userExists) {
-      return res
-        .status(400)
-        .json({
-          message: userExists.email === email.toLowerCase()
-            ? "Ya existe un usuario con este email."
-            : "Ya existe un usuario con este número de documento.",
-        });
+      return res.status(400).json({ message: "El usuario ya existe (email o documento duplicado)." });
     }
 
-    // 2. Definir la contraseña por defecto (Número de Documento)
-    // ¡IMPORTANTE! Mongoose hashea la contraseña en el middleware pre-save (models/User.js).
+    // 2. Contraseña por defecto = Número de Documento
     const defaultPassword = documentNumber;
 
-    // 3. Crear el usuario
+    // 3. Crear usuario
     const user = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       documentType,
       documentNumber: documentNumber.trim(),
-      password: defaultPassword,
+      password: defaultPassword, // Se encripta en el modelo automáticamente
       role: role || "invitado",
+      isPasswordSet: false // 🚨 IMPORTANTE: Marca que debe cambiar contraseña
     });
 
     if (user) {
-      // ✅ AUDITORÍA: USUARIO CREADO
-      const { logAuditAction } = require('../middleware/auditMiddleware');
-      logAuditAction(req, 'USER_CREATE', `Usuario creado: ${user.name} (${user.email}) con rol: ${user.role}.`, user._id);
+      // Auditoría
+      await logAction(user, 'USER_CREATE', `Registro público: ${user.name}`, user._id, req);
 
       res.status(201).json({
-        message: "Usuario registrado exitosamente. Debe cambiar su contraseña inicial.",
+        message: "Usuario registrado. Debe cambiar contraseña.",
         token: generateToken(user._id),
         user: {
-          id: user._id,
+          _id: user._id, // OJO: El frontend suele buscar _id
+          name: user.name,
           documentNumber: user.documentNumber,
           role: user.role,
-          isPasswordSet: user.isPasswordSet,
+          isPasswordSet: user.isPasswordSet, // Vital para la redirección
         },
       });
     } else {
-      res.status(400).json({ message: "Datos de usuario inválidos." });
+      res.status(400).json({ message: "Datos inválidos." });
     }
   } catch (error) {
-    console.error("Error en el registro:", error);
-
-    // Mejorar manejo de errores de validación de Mongoose
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ message: messages.join(', ') });
-    }
-
-    res.status(500).json({ message: "Error interno del servidor." });
+    console.error("Error registro:", error);
+    res.status(500).json({ message: "Error del servidor: " + error.message });
   }
 };
 
-// @desc    Autenticar un usuario (Login)
+// @desc    Login (Lógica Antigua Restaurada)
 // @route   POST /api/auth/login
-// @access  Público
-const loginUser = async (req, res) => {
+const login = async (req, res) => {
   const { documentNumber, password } = req.body;
 
-  // Validación básica de campos
   if (!documentNumber || !password) {
-    return res
-      .status(400)
-      .json({
-        message: "Por favor, ingrese número de documento y contraseña.",
-      });
+    return res.status(400).json({ message: "Ingrese documento y contraseña." });
   }
 
   try {
-    // 1. Buscar al usuario por número de documento
     const user = await User.findOne({ documentNumber });
 
-    // 2. Verificar usuario y contraseña
-    // matchPassword es el método que definimos en el modelo User.js
     if (user && (await user.matchPassword(password))) {
+      
+      await logAction(user, 'LOGIN', `Login exitoso: ${user.name}`, user._id, req);
+
       res.json({
-        message: "Inicio de sesión exitoso.",
-        // Devolvemos el token
+        message: "Login exitoso.",
         token: generateToken(user._id),
-        user: {
-          id: user._id,
-          documentNumber: user.documentNumber,
-          role: user.role,
-          isPasswordSet: user.isPasswordSet
-        },
+        user: { // Estructura plana para facilitar el frontend
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            documentNumber: user.documentNumber,
+            isPasswordSet: user.isPasswordSet // Vital
+        }
       });
     } else {
-      res
-        .status(401)
-        .json({
-          message: "Credenciales inválidas (Usuario o Contraseña incorrectos).",
-        });
+      res.status(401).json({ message: "Credenciales incorrectas." });
     }
   } catch (error) {
-    console.error("Error en el login:", error);
-    res.status(500).json({ message: "Error interno del servidor." });
+    console.error("Error login:", error);
+    res.status(500).json({ message: "Error del servidor." });
   }
 };
 
-module.exports = {
-  registerUser,
-  loginUser,
+// @desc    Cambiar Contraseña
+// @route   PUT /api/auth/change-password
+const changePassword = async (req, res) => {
+    try {
+        // El middleware 'protect' ya puso el usuario en req.user
+        const { currentPassword, newPassword } = req.body; 
+        const user = await User.findById(req.user._id);
+
+        // Validar contraseña actual (que es el documento al principio)
+        // En tu versión antigua solo pedías la nueva, pero por seguridad pidamos la actual también
+        // o si prefieres la versión antigua, quita esta validación:
+        if (user && (await user.matchPassword(currentPassword))) {
+            user.password = newPassword;
+            user.isPasswordSet = true;
+            await user.save();
+
+            await logAction(user, 'PASS_CHANGE', `Cambio de contraseña`, user._id, req);
+            res.json({ message: "Contraseña actualizada." });
+        } else {
+            res.status(401).json({ message: "La contraseña actual no coincide." });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Error al cambiar contraseña." });
+    }
 };
+
+module.exports = { register, login, changePassword };

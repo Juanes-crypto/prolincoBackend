@@ -2,6 +2,7 @@
 const Document = require('../models/Document');
 const fs = require('fs');
 const path = require('path');
+const logAction = require('../utils/auditLogger'); // 👈 IMPORTACIÓN DEL LOGGER
 
 // @desc    Subir un nuevo documento al repositorio
 // @route   POST /api/documents
@@ -24,6 +25,16 @@ const uploadDocument = async (req, res) => {
         });
 
         const savedDoc = await newDoc.save();
+
+        // 🕵️‍♂️ AUDITORÍA: SUBIDA DE DOCUMENTO
+        await logAction(
+            req.user, 
+            'DOC_UPLOAD', 
+            `Subió archivo al repositorio: ${req.file.originalname} (${(req.file.size / 1024).toFixed(2)} KB)`, 
+            savedDoc._id, 
+            req
+        );
+
         res.status(201).json(savedDoc);
 
     } catch (error) {
@@ -37,10 +48,8 @@ const uploadDocument = async (req, res) => {
 // @access  Privado
 const getDocuments = async (req, res) => {
     try {
-        // Podríamos filtrar por rol aquí si quisieras privacidad estricta
-        // Por ahora, listamos todos ordenados por fecha
         const docs = await Document.find()
-            .populate('uploadedBy', 'documentNumber role') // Ver quién lo subió
+            .populate('uploadedBy', 'documentNumber role') 
             .sort({ createdAt: -1 });
             
         res.json(docs);
@@ -66,12 +75,23 @@ const deleteDocument = async (req, res) => {
         
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath); // Borrado físico
-        } else {
-            console.warn(`⚠️ El archivo físico no existía: ${filePath}`);
         }
+
+        // Guardamos datos para el log
+        const docName = doc.originalName;
+        const docId = doc._id;
 
         // Eliminar registro de BD
         await doc.deleteOne();
+
+        // 🕵️‍♂️ AUDITORÍA: ELIMINACIÓN DE DOCUMENTO
+        await logAction(
+            req.user, 
+            'DOC_DELETE', 
+            `Eliminó archivo del repositorio: ${docName}`, 
+            docId, 
+            req
+        );
 
         res.json({ message: 'Documento eliminado correctamente' });
 
