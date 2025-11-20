@@ -1,42 +1,23 @@
 // backend/routes/documentRoutes.js
-
 const express = require('express');
 const router = express.Router();
-const { protect, roleCheck } = require('../middleware/authMiddleware'); // Middleware de autenticación y roles
-const upload = require('../middleware/uploadMiddleware'); // Middleware de Multer
-const documentController = require('../controllers/documentController');
+const { protect } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
+const { 
+    uploadDocument, 
+    getDocuments, 
+    deleteDocument 
+} = require('../controllers/documentController');
 
-// Ruta protegida para subir un documento
-// Utilizamos 'upload.single('file')' para indicar que se espera un solo archivo
-// en el campo del formulario llamado 'file'.
-router.post(
-    '/upload', 
-    protect, 
-    upload.single('file'), // Multer se ejecuta aquí, sube el archivo y adjunta 'req.file'
-    documentController.uploadDocument
-);
+// Ruta base: /api/documents
 
-router.get(
-    '/', 
-    protect, 
-    roleCheck(['admin', 'talento', 'servicio']), 
-    documentController.getDocuments
-); 
+// Listar documentos
+router.get('/', protect, getDocuments);
 
-router.get(
-    '/:id/download', 
-    protect,
-    documentController.downloadDocument
-);
+// Subir documento (usamos el middleware 'upload')
+router.post('/', protect, upload.single('file'), uploadDocument);
 
-router.delete(
-    '/:id', 
-    protect,
-    roleCheck(['admin', 'talento', 'servicio']), // Asegura que solo roles autorizados borren
-    documentController.deleteDocument
-);
-// Aquí puedes añadir más rutas:
-// router.get('/', protect, documentController.getDocuments);
-// router.get('/:id', protect, documentController.getDocumentById);
+// Eliminar documento
+router.delete('/:id', protect, deleteDocument);
 
 module.exports = router;

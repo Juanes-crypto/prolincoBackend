@@ -1,193 +1,88 @@
 // backend/controllers/documentController.js
+const Document = require('../models/Document');
+const fs = require('fs');
+const path = require('path');
 
-const Document = require('../models/Document'); // Tu modelo de documento
-const fs = require('fs'); // Módulo nativo de Node para manipulación de archivos
-const asyncHandler = require('express-async-handler');
-const { logAuditAction } = require('../middleware/auditMiddleware'); // ✅ AUDITORÍA
-
-
-// @desc    Sube un documento y guarda su metadata
+// @desc    Subir un nuevo documento al repositorio
 // @route   POST /api/documents
-// @access  Private (Requiere token JWT)
-const uploadDocument = asyncHandler(async (req, res) => {
-    // Multer ya ha subido el archivo y adjuntado la información a req.file
-    if (!req.file) {
-        return res.status(400).json({ message: 'No se proporcionó ningún archivo o el tipo de archivo no es permitido.' });
-    }
-
-    if (!req.user || !req.user.role) {
-        return res.status(401).json({ message: 'Error de autenticación: Usuario o rol no definidos.' });
-    }
-
-    const { 
-        originalname: fileName, 
-        path: filePath, 
-        mimetype: mimeType, 
-        size: fileSize 
-    } = req.file;
-
-    const uploadedBy = req.user._id;
-    const uploaderRole = req.user.role;
-    const category = req.body.category || 'General'; 
-
+// @access  Privado
+const uploadDocument = async (req, res) => {
     try {
-        // Crear la entrada en la base de datos
-        const newDocument = await Document.create({
-            fileName,
-            filePath,
-            mimeType,
-            fileSize,
-            uploadedBy,
-            uploaderRole,
-            category
-        });
-
-        if (newDocument) {
-             // ✅ AUDITORÍA: DOCUMENTO SUBIDO
-            logAuditAction(
-                req, 
-                'DOC_UPLOAD', 
-                `Documento subido: ${newDocument.fileName}. Categoría: ${newDocument.category}.`, 
-                newDocument._id
-            );
-            
-            res.status(201).json({
-                message: 'Documento subido y metadata guardada con éxito',
-                document: {
-                    id: newDocument._id,
-                    fileName: newDocument.fileName,
-                    category: newDocument.category,
-                    uploadedAt: newDocument.createdAt
-                }
-            });
-        } else {
-             res.status(400);
-             throw new Error('Datos de documento no válidos');
+        if (!req.file) {
+            return res.status(400).json({ message: 'No se ha subido ningún archivo.' });
         }
 
+        // Crear registro en BD
+        const newDoc = new Document({
+            originalName: req.file.originalname,
+            filename: req.file.filename,
+            path: `/uploads/${req.file.filename}`, // Ruta pública
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+            uploadedBy: req.user._id,
+            category: req.body.category || 'General'
+        });
+
+        const savedDoc = await newDoc.save();
+        res.status(201).json(savedDoc);
+
     } catch (error) {
-        console.error(`Error al guardar metadata del documento: ${error.message}`);
-        
-        // 🚨 IMPORTANTE: Si falla al guardar en DB, debemos borrar el archivo físico subido por Multer.
-        fs.unlink(filePath, (err) => {
-            if (err) console.error(`Fallo al borrar el archivo físico: ${err.message}`);
-        });
-
-        res.status(500).json({ 
-            message: 'Error al procesar el documento. Inténtelo de nuevo.' 
-        });
+        console.error('Error subiendo documento:', error);
+        res.status(500).json({ message: 'Error al procesar la subida.' });
     }
-});
+};
 
-// @desc    Obtener todos los documentos con info del usuario que lo subió
+// @desc    Obtener lista de documentos
 // @route   GET /api/documents
-// @access  Private (Requiere roles específicos)
+// @access  Privado
 const getDocuments = async (req, res) => {
     try {
-        const documents = await Document.find({})
-            .sort({ createdAt: -1 }) // Mostrar los más recientes primero
-            .populate('uploadedBy', 'name email documentNumber role'); 
+        // Podríamos filtrar por rol aquí si quisieras privacidad estricta
+        // Por ahora, listamos todos ordenados por fecha
+        const docs = await Document.find()
+            .populate('uploadedBy', 'documentNumber role') // Ver quién lo subió
+            .sort({ createdAt: -1 });
             
-        res.status(200).json(documents);
-
+        res.json(docs);
     } catch (error) {
-        console.error(`Error al obtener documentos: ${error.message}`);
-        res.status(500).json({ message: 'Error al cargar la lista de documentos.' });
+        console.error('Error obteniendo documentos:', error);
+        res.status(500).json({ message: 'Error al listar documentos.' });
     }
 };
 
-// @desc    Descarga un documento específico
-// @route   GET /api/documents/:id/download
-// @access  Private
-const downloadDocument = async (req, res) => {
-    try {
-        const document = await Document.findById(req.params.id);
-
-        if (!document) {
-            return res.status(404).json({ message: 'Documento no encontrado en la base de datos.' });
-        }
-
-        const filePath = document.filePath;
-        
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ message: 'Archivo físico no encontrado en el servidor. La referencia está rota.' });
-        }
-
-        res.download(filePath, document.fileName, (err) => {
-            if (err) {
-                console.error(`Error de descarga para ${document.fileName}: ${err.message}`);
-                if (!res.headersSent) {
-                    res.status(500).json({ message: 'Fallo en la transferencia del archivo.' });
-                }
-            }
-        });
-
-    } catch (error) {
-        console.error(`Error en la descarga del documento: ${error.message}`);
-        res.status(500).json({ message: 'Error interno del servidor al intentar descargar.' });
-    }
-};
-
+// @desc    Eliminar documento
+// @route   DELETE /api/documents/:id
+// @access  Privado
 const deleteDocument = async (req, res) => {
     try {
-        const document = await Document.findById(req.params.id);
+        const doc = await Document.findById(req.params.id);
 
-        if (!document) {
-            return res.status(404).json({ message: 'Documento no encontrado en la base de datos.' });
+        if (!doc) {
+            return res.status(404).json({ message: 'Documento no encontrado' });
         }
+
+        // Eliminar archivo físico del servidor
+        const filePath = path.join(__dirname, '..', 'uploads', doc.filename);
         
-        const fileName = document.fileName;
-        const filePath = document.filePath;
-        
-        // 1. ELIMINAR EL ARCHIVO FÍSICO DEL SERVIDOR
         if (fs.existsSync(filePath)) {
-            fs.unlink(filePath, async (err) => {
-                if (err) {
-                    console.error(`Fallo al borrar el archivo físico ${filePath}: ${err.message}`);
-                }
-
-                // 2. ELIMINAR LA REFERENCIA DE LA BASE DE DATOS
-                await Document.deleteOne({ _id: req.params.id });
-
-                // ✅ AUDITORÍA: DOCUMENTO ELIMINADO
-                logAuditAction(
-                    req, 
-                    'DOC_DELETE', 
-                    `Documento eliminado: ${fileName} por el usuario ${req.user.name}.`, 
-                    document._id
-                );
-
-                res.status(200).json({ 
-                    message: `Documento "${fileName}" y su registro eliminados con éxito.`
-                });
-            });
+            fs.unlinkSync(filePath); // Borrado físico
         } else {
-            // Si el archivo físico ya no existe, borramos solo el registro de DB para limpiar la referencia.
-            await Document.deleteOne({ _id: req.params.id });
-            
-            // ✅ AUDITORÍA: REGISTRO DE DOCUMENTO LIMPIADO (archivo ausente)
-            logAuditAction(
-                req, 
-                'DOC_DELETE', 
-                `Registro de documento eliminado. Archivo físico ya estaba ausente. Nombre: ${fileName}.`, 
-                document._id
-            );
-
-            res.status(200).json({ 
-                message: `Registro de documento eliminado. Archivo físico ya estaba ausente.`
-            });
+            console.warn(`⚠️ El archivo físico no existía: ${filePath}`);
         }
 
+        // Eliminar registro de BD
+        await doc.deleteOne();
+
+        res.json({ message: 'Documento eliminado correctamente' });
 
     } catch (error) {
-        console.error(`Error en la eliminación del documento: ${error.message}`);
-        res.status(500).json({ message: 'Error interno del servidor al intentar eliminar el documento.' });
+        console.error('Error eliminando documento:', error);
+        res.status(500).json({ message: 'Error al eliminar el documento.' });
     }
 };
 
 module.exports = {
     uploadDocument,
     getDocuments,
-    downloadDocument,
-    deleteDocument,
+    deleteDocument
 };
