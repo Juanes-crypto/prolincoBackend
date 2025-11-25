@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 
 const toolSchema = new mongoose.Schema({
     // Título de la herramienta
-    title: { type: String, required: true, trim: true },
+    title: {type: String, required: true, trim: true },
     
     // Descripción corta
     description: { type: String, default: '' },
@@ -33,5 +33,10 @@ const toolSchema = new mongoose.Schema({
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 
 }, { timestamps: true });
+
+// 🚀 OPTIMIZACIÓN: Índices para queries rápidas
+toolSchema.index({ section: 1, category: 1 }); // Consulta por sección+categoría (más común)
+toolSchema.index({ createdBy: 1 }); // Para auditorías
+toolSchema.index({ createdAt: -1 }); // Ordenamiento temporal
 
 module.exports = mongoose.model('Tool', toolSchema);

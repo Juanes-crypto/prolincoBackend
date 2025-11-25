@@ -40,4 +40,10 @@ const documentSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+// 🚀 OPTIMIZACIÓN: Índices para queries rápidas
+documentSchema.index({ uploadedBy: 1 }); // Filtrar por usuario
+documentSchema.index({ createdAt: -1 }); // Ordenar por fecha (más reciente primero)
+documentSchema.index({ category: 1 }); // Filtrar por categoría
+documentSchema.index({ originalName: 'text' }); // Búsqueda de texto
+
 module.exports = mongoose.model('Document', documentSchema);

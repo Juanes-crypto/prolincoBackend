@@ -1,7 +1,8 @@
 // backend/controllers/authController.js
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
-const logAction = require('../utils/auditLogger'); // Usamos el logger nuevo que sí funciona
+const logAction = require('../utils/auditLogger');
+const AuthService = require('../services/authService'); // 🚀 OPTIMIZACIÓN: Service layer
 
 // Generar Token
 const generateToken = (id) => {
@@ -10,39 +11,26 @@ const generateToken = (id) => {
   });
 };
 
-// @desc    Registrar usuario (Lógica Antigua Restaurada)
+// @desc    Registrar usuario
 // @route   POST /api/auth/register
+// 🚀 OPTIMIZACIÓN: Validación temprana y delegación a service
 const register = async (req, res) => {
-  // NOTA: En tu versión vieja no pedías 'position' ni 'area', así que los quitamos para evitar líos
   const { name, email, documentType, documentNumber, role } = req.body;
 
+  // Validación temprana (sin consultar DB)
   if (!name || !email || !documentType || !documentNumber) {
     return res.status(400).json({ message: "Todos los campos son obligatorios." });
   }
 
   try {
-    // 1. Verificar duplicados
-    const userExists = await User.findOne({
-      $or: [{ email: email.toLowerCase() }, { documentNumber }]
-    });
-
-    if (userExists) {
+    // 1. Verificar duplicados usando service
+    const exists = await AuthService.userExists(email, documentNumber);
+    if (exists) {
       return res.status(400).json({ message: "El usuario ya existe (email o documento duplicado)." });
     }
 
-    // 2. Contraseña por defecto = Número de Documento
-    const defaultPassword = documentNumber;
-
-    // 3. Crear usuario
-    const user = await User.create({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      documentType,
-      documentNumber: documentNumber.trim(),
-      password: defaultPassword, // Se encripta en el modelo automáticamente
-      role: role || "invitado",
-      isPasswordSet: false // 🚨 IMPORTANTE: Marca que debe cambiar contraseña
-    });
+    // 2. Crear usuario
+    const user = await AuthService.createUser({ name, email, documentType, documentNumber, role });
 
     if (user) {
       // Auditoría
@@ -51,13 +39,7 @@ const register = async (req, res) => {
       res.status(201).json({
         message: "Usuario registrado. Debe cambiar contraseña.",
         token: generateToken(user._id),
-        user: {
-          _id: user._id, // OJO: El frontend suele buscar _id
-          name: user.name,
-          documentNumber: user.documentNumber,
-          role: user.role,
-          isPasswordSet: user.isPasswordSet, // Vital para la redirección
-        },
+        user: AuthService.formatUserResponse(user)
       });
     } else {
       res.status(400).json({ message: "Datos inválidos." });
@@ -68,33 +50,27 @@ const register = async (req, res) => {
   }
 };
 
-// @desc    Login (Lógica Antigua Restaurada)
+// @desc    Login
 // @route   POST /api/auth/login
+// 🚀 OPTIMIZACIÓN: Validación temprana y service layer
 const login = async (req, res) => {
   const { documentNumber, password } = req.body;
 
+  // Validación temprana
   if (!documentNumber || !password) {
     return res.status(400).json({ message: "Ingrese documento y contraseña." });
   }
 
   try {
-    const user = await User.findOne({ documentNumber });
+    const user = await AuthService.findUserByDocument(documentNumber);
 
     if (user && (await user.matchPassword(password))) {
-      
       await logAction(user, 'LOGIN', `Login exitoso: ${user.name}`, user._id, req);
 
       res.json({
         message: "Login exitoso.",
         token: generateToken(user._id),
-        user: { // Estructura plana para facilitar el frontend
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            documentNumber: user.documentNumber,
-            isPasswordSet: user.isPasswordSet // Vital
-        }
+        user: AuthService.formatUserResponse(user)
       });
     } else {
       res.status(401).json({ message: "Credenciales incorrectas." });
@@ -109,13 +85,9 @@ const login = async (req, res) => {
 // @route   PUT /api/auth/change-password
 const changePassword = async (req, res) => {
     try {
-        // El middleware 'protect' ya puso el usuario en req.user
         const { currentPassword, newPassword } = req.body; 
         const user = await User.findById(req.user._id);
 
-        // Validar contraseña actual (que es el documento al principio)
-        // En tu versión antigua solo pedías la nueva, pero por seguridad pidamos la actual también
-        // o si prefieres la versión antigua, quita esta validación:
         if (user && (await user.matchPassword(currentPassword))) {
             user.password = newPassword;
             user.isPasswordSet = true;
