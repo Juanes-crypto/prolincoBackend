@@ -1,0 +1,110 @@
+[
+  {
+    "config": {
+      "allowsUrl": false,
+      "allowsFile": true
+    },
+    "_id": "69207e8dbd6d7dfdde34f7d6",
+    "title": "Proceso de capacitación",
+    "description": "El proceso de capacitación tiene la función de desarrollar, actualizar y fortalecer las competencias del personal, permitiendo mejorar el desempeño, aumentar la productividad y garantizar que la organización cuente con un equipo preparado para afrontar cambios y nuevas exigencias.",
+    "section": "talento",
+    "category": "Proceso de capacitación",
+    "urlValue": "",
+    "fileUrl": "",
+    "originalFileName": "",
+    "createdBy": "691f80acdef17ffbd303815b",
+    "createdAt": "2025-11-21T15:00:29.136Z",
+    "updatedAt": "2025-11-24T22:23:46.664Z",
+    "__v": 0
+  },
+  {
+    "config": {
+      "allowsUrl": false,
+      "allowsFile": true
+    },
+    "_id": "692081b4bd6d7dfdde34f7f6",
+    "title": "Perfil del cargo",
+    "description": "El perfil del cargo cumple la función de definir los requisitos, competencias, formación y habilidades necesarias para desempeñar un puesto, asegurando que los candidatos seleccionados se ajusten a las necesidades reales del cargo y contribuyan al buen rendimiento organizacional.",
+    "section": "talento",
+    "category": "Perfil del cargo",
+    "urlValue": "",
+    "fileUrl": "",
+    "originalFileName": "",
+    "createdBy": "691f80acdef17ffbd303815b",
+    "createdAt": "2025-11-21T15:13:56.893Z",
+    "updatedAt": "2025-11-24T22:23:46.664Z",
+    "__v": 0
+  },
+  {
+    "config": {
+      "allowsUrl": false,
+      "allowsFile": true
+    },
+    "_id": "69208241bd6d7dfdde34f806",
+    "title": "Organigrama",
+    "description": "La función del organigrama es representar visualmente la estructura jerárquica y operativa de la organización, mostrando los niveles de autoridad, los cargos y la relación entre cada área. Esto facilita la comunicación interna, la asignación de responsabilidades y la comprensión del flujo de mando.",
+    "section": "talento",
+    "category": "Organigrama",
+    "urlValue": "",
+    "fileUrl": "https://res.cloudinary.com/dbqsidgbw/raw/upload/v1764028475/prolinco_uploads/1764028476159-ejercicio.xlsx",
+    "originalFileName": "ejercicio.xlsx",
+    "createdBy": "691f80acdef17ffbd303815b",
+    "createdAt": "2025-11-21T15:16:17.732Z",
+    "updatedAt": "2025-11-24T23:54:37.554Z",
+    "__v": 0
+  },
+  {
+    "config": {
+      "allowsUrl": false,
+      "allowsFile": true
+    },
+    "_id": "69208388bd6d7dfdde34f816",
+    "title": "Mapa de procesos",
+    "description": "El mapa de procesos tiene la función de mostrar cómo se articulan y se conectan los procesos estratégicos, misionales y de apoyo dentro de la empresa, permitiendo identificar el flujo de actividades y cómo cada proceso aporta al cumplimiento de los objetivos organizacionales. También ayuda a detectar mejoras y evitar duplicidades.",
+    "section": "talento",
+    "category": "Mapa de procesos",
+    "urlValue": "",
+    "fileUrl": "https://res.cloudinary.com/dbqsidgbw/raw/upload/v1764028431/prolinco_uploads/1764028431129-taller3deimer.pdf",
+    "originalFileName": "taller3deimer.pdf",
+    "createdBy": "691f80acdef17ffbd303815b",
+    "createdAt": "2025-11-21T15:21:44.794Z",
+    "updatedAt": "2025-11-24T23:53:53.136Z",
+    "__v": 0
+  },
+  {
+    "config": {
+      "allowsUrl": false,
+      "allowsFile": true
+    },
+    "_id": "69208421bd6d7dfdde34f826",
+    "title": "Proceso de inducción",
+    "description": "Su función es orientar, integrar y preparar a los nuevos colaboradores, brindándoles información sobre la empresa, su cultura, políticas, normas y funciones. La inducción facilita una adaptación más rápida y reduce errores en las primeras etapas del trabajo.",
+    "section": "talento",
+    "category": "Proceso de inducción",
+    "urlValue": "",
+    "fileUrl": "https://res.cloudinary.com/dbqsidgbw/raw/upload/v1764029241/prolinco_uploads/1764029235399-ODS.pdf",
+    "originalFileName": "ODS.pdf",
+    "createdBy": "691f80acdef17ffbd303815b",
+    "createdAt": "2025-11-21T15:24:17.838Z",
+    "updatedAt": "2025-11-25T00:07:23.041Z",
+    "__v": 0
+  },
+  {
+    "config": {
+      "allowsUrl": false,
+      "allowsFile": true
+    },
+    "_id": "69241b69c4ca8b12dee929eb",
+    "title": "Marco Contextual",
+    "description": "",
+    "section": "admin",
+    "category": "Marco Contextual",
+    "urlValue": "",
+    "fileUrl": "",
+    "originalFileName": "",
+    "createdBy": "691f80acdef17ffbd303815b",
+    "createdAt": "2025-11-24T08:46:33.361Z",
+    "updatedAt": "2025-11-24T22:23:46.664Z",
+    "__v": 0
+  }
+]

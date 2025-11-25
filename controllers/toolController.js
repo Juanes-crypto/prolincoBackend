@@ -1,17 +1,15 @@
 // backend/controllers/toolController.js
 const Tool = require('../models/Tool');
-const fs = require('fs');
-const path = require('path');
-const logAction = require('../utils/auditLogger'); // 👈 IMPORTACIÓN DEL LOGGER
+// const fs = require('fs'); // Ya no necesitamos fs para Cloudinary
+// const path = require('path'); // Ya no necesitamos path para Cloudinary
+const logAction = require('../utils/auditLogger');
 
 // @desc    Crear una nueva herramienta (Definición)
 // @route   POST /api/tools
-// @access  Privado (Admin o Roles permitidos)
 const createTool = async (req, res) => {
     try {
         const { title, description, section, category, config } = req.body;
 
-        // Validación básica
         if (!title || !section || !category) {
             return res.status(400).json({ message: 'Título, sección y categoría son obligatorios.' });
         }
@@ -20,7 +18,7 @@ const createTool = async (req, res) => {
             title,
             description,
             section,
-            category, // Ej: 'Preventa', 'Inducción'
+            category,
             config: {
                 allowsUrl: config.allowsUrl || false,
                 allowsFile: config.allowsFile || false
@@ -30,11 +28,10 @@ const createTool = async (req, res) => {
 
         const savedTool = await newTool.save();
 
-        // 🕵️‍♂️ AUDITORÍA: CREACIÓN
         await logAction(
             req.user, 
             'TOOL_CREATE', 
-            `Creó herramienta "${title}" en sección ${section} (Cat: ${category})`, 
+            `Creó herramienta "${title}" en sección ${section}`, 
             savedTool._id, 
             req
         );
@@ -49,20 +46,14 @@ const createTool = async (req, res) => {
 
 // @desc    Obtener herramientas por sección
 // @route   GET /api/tools/:section
-// @access  Privado
 const getToolsBySection = async (req, res) => {
     try {
         const { section } = req.params;
-        
-        // Buscamos todas las herramientas de esa sección
         const tools = await Tool.find({ section }).sort({ category: 1, createdAt: -1 });
 
-        // Agrupamos por Categoría
         const groupedTools = tools.reduce((acc, tool) => {
             const cat = tool.category;
-            if (!acc[cat]) {
-                acc[cat] = [];
-            }
+            if (!acc[cat]) acc[cat] = [];
             acc[cat].push(tool);
             return acc;
         }, {});
@@ -77,12 +68,11 @@ const getToolsBySection = async (req, res) => {
 
 // @desc    Actualizar el CONTENIDO de la herramienta (URL o Archivo)
 // @route   PUT /api/tools/:id/data
-// @access  Privado
 const updateToolData = async (req, res) => {
     try {
         const { id } = req.params;
         const { urlValue } = req.body;
-        const file = req.file; // Viene de Multer si se subió archivo
+        const file = req.file; 
 
         let tool = await Tool.findById(id);
 
@@ -92,31 +82,27 @@ const updateToolData = async (req, res) => {
 
         let auditDescription = `Actualizó herramienta "${tool.title}"`;
 
-        // 1. Actualizar URL si se envió
+        // 1. Actualizar URL Manual (Si el usuario escribió un link)
+        // 🛑 CORRECCIÓN: Antes validabas 'file' aquí por error. Ahora validamos 'urlValue'.
         if (tool.config.allowsUrl && urlValue !== undefined) {
             tool.urlValue = urlValue;
             auditDescription += ' (Cambió URL)';
         }
 
-        // 2. Actualizar Archivo si se envió
+        // 2. Actualizar Archivo (Si el usuario subió uno)
         if (tool.config.allowsFile && file) {
-            // Si ya había un archivo anterior, borrarlo
-            if (tool.fileUrl) {
-                const oldPath = path.join(__dirname, '..', tool.fileUrl);
-                if (fs.existsSync(oldPath)) {
-                    fs.unlinkSync(oldPath); 
-                }
-            }
-
-            // Guardar nueva ruta
-            tool.fileUrl = `/uploads/${file.filename}`; 
+            // 🌟 CORRECCIÓN FINAL:
+            // Guardamos DIRECTAMENTE la ruta de Cloudinary.
+            // Eliminamos toda la lógica vieja de '/uploads/' y 'fs.unlink'.
+            
+            tool.fileUrl = file.path; // URL completa (https://res.cloudinary...)
             tool.originalFileName = file.originalname;
+            
             auditDescription += ' (Subió nuevo archivo)';
         }
 
         const updatedTool = await tool.save();
 
-        // 🕵️‍♂️ AUDITORÍA: ACTUALIZACIÓN
         await logAction(
             req.user, 
             'TOOL_UPDATE', 
@@ -142,19 +128,14 @@ const deleteTool = async (req, res) => {
 
         if (!tool) return res.status(404).json({ message: 'No encontrado' });
 
-        // Borrar archivo físico si existe
-        if (tool.fileUrl) {
-             const filePath = path.join(__dirname, '..', tool.fileUrl);
-             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        }
+        // Nota: No borramos de Cloudinary por API para mantenerlo simple,
+        // pero ya no intentamos borrar de disco local (fs) para evitar errores.
 
-        // Guardamos datos para el log antes de borrar
         const toolTitle = tool.title;
         const toolId = tool._id;
 
         await tool.deleteOne();
 
-        // 🕵️‍♂️ AUDITORÍA: ELIMINACIÓN
         await logAction(
             req.user, 
             'TOOL_DELETE', 

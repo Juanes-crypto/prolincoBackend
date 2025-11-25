@@ -12,12 +12,14 @@ const uploadDocument = async (req, res) => {
         if (!req.file) {
             return res.status(400).json({ message: 'No se ha subido ningún archivo.' });
         }
+        console.log("🔍 CLOUDINARY RESPONDIÓ:", req.file); 
+        console.log("🔗 RUTA GUARDADA:", req.file.path);
 
         // Crear registro en BD
         const newDoc = new Document({
             originalName: req.file.originalname,
-            filename: req.file.filename,
-            path: `/uploads/${req.file.filename}`, // Ruta pública
+            filename: req.file.filename, // En Cloudinary esto es el public_id
+            path: req.file.path, // 👈 AQUÍ ESTÁ LA URL DE LA NUBE
             mimetype: req.file.mimetype,
             size: req.file.size,
             uploadedBy: req.user._id,
